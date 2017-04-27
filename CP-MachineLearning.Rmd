@@ -1,0 +1,149 @@
+---
+title: "CP-MachineLearning"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+This project creates and tests a model to evaluate whether an exercise routine was properly executed based on several measures taken of the movement executed.
+
+## Setting Up
+
+The following code sets up a working directory, loads the necessary R packages and sets the seed to make the whole report more easily reproducible.
+
+```{r }
+setwd("C:\\Users\\Vostro 5458\\OneDrive\\Educacao\\Coursera-DataScienceSpecialization\\8-PracticalMachineLearning\\cp\\Course-Project---Practical-Machine-Learning")
+library("caret")
+library("randomForest")
+set.seed(100)
+```
+
+## Loading Data
+
+The data involves several measures of weight lifting exercises being executed. Based on these measures the movement was classified in one of 5 classes: A to E. Class A represents properly made exercises, while classes B to E indicate some kind of error in the exercise.  
+  
+The data was made available from this source: http://groupware.les.inf.puc-rio.br/har. 
+  
+The following code loads the training and test data.  
+
+```{r }
+traindata <- read.csv("pml-training.csv")
+testdata <- read.csv("pml-testing.csv")
+```
+
+
+
+
+### Finding Variables without NA Values
+
+Several of the variables in the training and test data have NA values. This may create problems for creating the model and, afterwards, for predictions based on new data.  
+  
+To address that issue, the following code executes a loop that first identifies which variables have NA values and then creates a new object that does not contain those variables. The procedure is done on both the train and test data, so only variables without NA values in both datasets are used in this project.
+
+```{r }
+a <- data.frame(matrix(nrow=160, ncol=1))
+for(i in 1:160){
+  a[i,1] <- sum(is.na(traindata[,i]))
+}
+b <- which(a > 0)
+traindata2 <- traindata[,-c(b)]
+testdata2 <- testdata[,-c(b)]
+
+c <- data.frame(matrix(nrow=57, ncol=1))
+for(i in 1:93){
+  c[i,1] <- sum(is.na(testdata2[,i]))
+}
+d <- which(c > 0)
+
+traindata3 <- traindata2[,-c(d)]
+testdata3 <- testdata2[,-c(d)]
+
+
+```
+
+
+
+
+## Creating Validation Partition
+
+We now set apart a portion of the training set to serve as a validation set:
+
+
+```{r }
+inTrain <- createDataPartition(y=traindata3$classe, p=0.8)
+tdata <- traindata3[unlist(inTrain),]
+vdata <- traindata3[-unlist(inTrain),]
+
+```
+
+
+## Creating the Model
+
+
+
+
+We now proceed to create the model using the "classe" variable as the outcome investigated: 
+
+```{r }
+m1 <- randomForest(classe ~. , data=tdata)
+```
+
+The details of the model can be found below:
+
+```{r }
+m1
+```
+
+
+
+## Validating the Model
+
+We now proceed to test how well the model handles new data. For that purpose, we first apply the model to the validation data set:
+
+```{r }
+pval <- predict(m1, vdata)
+```
+
+We then compare the predictions of the model with the actual outcomes:
+
+```{r }
+confusionMatrix(pval, vdata$classe)
+```
+
+As we can see, the model has an extremely high accuracy when applied to the validation dataset.
+
+
+## Testing the Model
+
+As a last step, we proceed to test the model on the test data provided.  
+  
+First, we perform an adjustment to the test data in order to make the class of each variable equivalent to those of the train data variables.
+
+
+```{r }
+fixFrame <- head(tdata,1)
+
+fixFrame <- fixFrame[, -length(colnames(fixFrame))] 
+
+testdata4 <- testdata3[, -c(60)]
+
+testdata4 <- rbind(fixFrame, testdata4) 
+
+testdata4 <- testdata4[-1,]
+
+
+```
+  
+Now we proceed to apply the model to the test set:
+
+```{r }
+tval <- predict(m1, testdata4)
+tval
+```
+
+The test results in mostly Class A results. The model may not have been effective on this test set, however effective it demonstrated itself on the validation data.
+
